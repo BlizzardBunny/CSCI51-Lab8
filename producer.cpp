@@ -9,18 +9,37 @@
 
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 using namespace std;
 
 int main( int argc, char* argv[] )
-{   
+{
+    //file reading moved to the start
     if (argv[1] == NULL)
     {
         perror("No arguments listed");
         return 0;
     }
+    string filename = argv[1];
+    vector <string> fileContent;
+    string line;
+    ifstream myfile(filename);
+    if (myfile.is_open())
+    {
+        while (getline(myfile, line))
+        {
+            fileContent.push_back(line);
+        }
+        myfile.close();
+    }
 
+    else cout << "Unable to open file";
+
+
+    
     string status;
+    string input;
 
     //Semaphore creation
     int semId;
@@ -70,79 +89,26 @@ int main( int argc, char* argv[] )
         perror( "shmop: shmat failed" );
         exit(1);
     }
-
-    //Textfile accessing
-    string textfile = argv[1];
-    ifstream message (textfile);
-    if (!message.is_open())
+    else
     {
-        perror("Unable to open file.");
-        exit(1);
-    } 
-    
-    string line;
-    getline(message,line);
-    int i = 0;
-    while ( true )
-    {
-        if (i >= line.length()-1)
+        //loop that puts the content of the fileContent vector into the input string
+        for (int i = 0; i <= int(fileContent.size())-1; i++)
         {
-            i = 0;
-            if (!getline(message,line))
-            {
-                status = "done";
-                break;
-            }            
+            input += fileContent[i];
         }
+            const char* buffer = input.c_str();
+            // We can now write to shared memory...
+            strcpy( sharedMem, buffer );
 
-        while (shmOccSpace < shmSize)
-        {
-            //one character is approx one byte in std::string
-            if (line.length() < shmSize - shmOccSpace)
-            {//whole line can fit in shm
-                const char* buffer = line.c_str();
-                strcpy( sharedMem,  buffer);
-                shmOccSpace += line.length();
-                if (!getline(message,line))
-                {
-                    status = "done";
-                    break;
-                }  
-            }
-            else
-            {//loop until shm is filled                
-                for (shmOccSpace; shmOccSpace < shmSize; shmOccSpace++)
-                {
-                    string letter(1, line[i]);
-                    const char* buffer = letter.c_str();
-                    strcpy( sharedMem,  buffer);
-                    i++;
-                }
-            }
-        }
+            char buffer2[50];
 
-        shmOccSpace = 0;
+            // Or read from shared memory.
+            strcpy( buffer2, sharedMem );
 
-        // -- Semaphore Releasing --
-        nOperations = 1;
-
-        sema[0].sem_num = 0;
-        sema[0].sem_op = -1;
-        sema[0].sem_flg = SEM_UNDO | IPC_NOWAIT;
-
-        opResult = semop( semId, sema, nOperations );
-
-        if( opResult == -1 )
-        {
-            perror( "semop (decrement)" );
-        }
-
-        status = "written";
-        //while shared mem B is in state II, wait
+            printf( "%s\n", buffer2 );
+        
     }
 
-    message.close();
-       
     return 0;
 }
 
@@ -150,3 +116,5 @@ int main( int argc, char* argv[] )
 //https://stackoverflow.com/questions/7743356/length-of-a-c-stdstring-in-bytes
 //https://stackoverflow.com/questions/347949/how-to-convert-a-stdstring-to-const-char-or-char
 //https://stackoverflow.com/questions/8437099/c-convert-char-to-const-char
+//https://stackoverflow.com/questions/7352099/stdstring-to-char/7352131
+
