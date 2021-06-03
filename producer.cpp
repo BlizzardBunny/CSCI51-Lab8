@@ -13,38 +13,18 @@
 
 using namespace std;
 
+//Program's flow should be:
+//1. Initialize the shared resources
+//2. Do the entry part of the program (in this case, open the text file and get the content)
+//3. Gain control of the semaphore
+//4. Do the program's critical section (access and write to shared memory)
+//5. Release Semaphore
+
 int main( int argc, char* argv[] )
 {
     string input, status;
     
-    //file reading moved to the start
-    if (argv[1] == NULL)
-    {
-        perror("No arguments listed");
-        return 0;
-    }
-    string filename = argv[1];
-    vector <string> fileContent;
-    string line;
-    ifstream myfile(filename);
-    if (myfile.is_open())
-    {
-        while (getline(myfile, line))
-        {
-            fileContent.push_back(line);
-        }
-        myfile.close();
-    }
-
-    else cout << "Unable to open file";
-    
-    //loop that moves the file content into a string
-    for (int i = 0; i <= int(fileContent.size())-1; i++)
-    {
-        input += fileContent[i];
-    }
-
-
+    //Step 1
     //Semaphore creation
     int semId;
     key_t semKey = 1234;
@@ -88,25 +68,79 @@ int main( int argc, char* argv[] )
     shmId = shmget( shmKey, shmSize, shmFlags ); 
     sharedMem = (char*)shmat( shmId, NULL, 0 );
 
-    if( ((int*)sharedMem) == (int*)-1 )
+    //Step 2
+    //Entry Section of the program
+    if (argv[1] == NULL)
     {
-        perror( "shmop: shmat failed" );
-        exit(1);
+        perror("No arguments listed");
+        return 0;
     }
-    else
+    string filename = argv[1];
+    vector <string> fileContent;
+    string line;
+    ifstream myfile(filename);
+    if (myfile.is_open())
     {
-            const char* buffer = input.c_str();
-            // We can now write to shared memory...
-            strcpy( sharedMem, buffer );
+        while (getline(myfile, line))
+        {
+            fileContent.push_back(line);
+        }
+        myfile.close();
+    }
 
-            char buffer2[shmId];
-
-            // Or read from shared memory.
-            strcpy( buffer2, sharedMem );
-
-            printf( "%s\n", buffer2 );
+    else cout << "Unable to open file";
+    
+    //loop that moves the file content into a string
+    for (int i = 0; i <= int(fileContent.size())-1; i++)
+    {
+        input += fileContent[i];
+    }
+    
+    //Step 3
+    //Gain control of semaphore
+    if (opResult != -1)
+    {
+        cout << "I have control of the semaphore pog"<<endl;
         
+        //Step 4
+        //Write to shared memory
+        if( ((int*)sharedMem) == (int*)-1 )
+        {
+            perror( "shmop: shmat failed" );
+            exit(1);
+        }
+        else
+        {
+            const char* buffer = input.c_str();
+            // We can now write to shared memory
+            strcpy( sharedMem, buffer );
+            
+            cout << "successfully wrote to shared memory"<<endl;
+        }
+        
+        //Step 5
+        // -- Semaphore Releasing --
+
+        // Set number of operations to 1
+        nOperations = 1;
+
+        // Modify the first operation such that it
+        // now decrements the semaphore.
+        sema[0].sem_num = 0; // Use the first semaphore in the semaphore set
+        sema[0].sem_op = -1; // Decrement semaphore by 1
+        sema[0].sem_flg = SEM_UNDO | IPC_NOWAIT;
+
+        opResult = semop( semId, sema, nOperations );
+        if( opResult == -1 )
+        {
+            perror( "semop (decrement)" );
+        }
+        else
+        {
+            printf( "Successfully decremented semaphore!\n" );
+        }
     }
+
 
     return 0;
 }
