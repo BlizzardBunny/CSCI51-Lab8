@@ -21,7 +21,9 @@ using namespace std;
 
 int main (int argc, char* argv[] )
 {
-    string filename;
+    vector<string> pacertest;
+    string filename = argv[1];
+    ofstream outputFile(filename);
     //Step 1, find the shared resources
     // -- Semaphore Initialization --
 
@@ -42,7 +44,7 @@ int main (int argc, char* argv[] )
 
     // Number of semaphores in the semaphore set
     // For this example, we'll just create 1 semaphore set
-    int nSems = 1;
+    int nSems = 0;
 
     // Attempt to get a semaphore set
     // Returns -1 if there was an error.
@@ -59,7 +61,7 @@ int main (int argc, char* argv[] )
 
     // 1 key = 1 shared memory segment
     // Think of a map (the data structure)
-    key_t shmKey = 6969;
+    key_t shmKey = 12341234;
 
     // Size of the shared memory in bytes.
     // Preferably a power of 2
@@ -124,15 +126,12 @@ int main (int argc, char* argv[] )
         }
         else
         {
-            char buffer[shmSize];
-
-            // Or read from shared memory.
+            //TODO: made it pass via chunks instead of 1 big buffer
+            char buffer[999];
             strcpy( buffer, sharedMem );
-
-            filename = argv[1];
-            ofstream outputFile (filename);
             outputFile << buffer;
-            
+            printf( "%s\n", buffer );
+            //outputFile << buffer << endl;
         }
         
         //Step 4
