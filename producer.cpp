@@ -15,6 +15,8 @@ using namespace std;
 
 int main( int argc, char* argv[] )
 {
+    string input, status;
+    
     //file reading moved to the start
     if (argv[1] == NULL)
     {
@@ -35,11 +37,13 @@ int main( int argc, char* argv[] )
     }
 
     else cout << "Unable to open file";
-
-
     
-    string status;
-    string input;
+    //loop that moves the file content into a string
+    for (int i = 0; i <= int(fileContent.size())-1; i++)
+    {
+        input += fileContent[i];
+    }
+
 
     //Semaphore creation
     int semId;
@@ -91,16 +95,11 @@ int main( int argc, char* argv[] )
     }
     else
     {
-        //loop that puts the content of the fileContent vector into the input string
-        for (int i = 0; i <= int(fileContent.size())-1; i++)
-        {
-            input += fileContent[i];
-        }
             const char* buffer = input.c_str();
             // We can now write to shared memory...
             strcpy( sharedMem, buffer );
 
-            char buffer2[50];
+            char buffer2[shmId];
 
             // Or read from shared memory.
             strcpy( buffer2, sharedMem );
