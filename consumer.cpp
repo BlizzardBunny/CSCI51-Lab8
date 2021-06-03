@@ -100,7 +100,7 @@ int main (int argc, char* argv[] )
     // Our first operation will be to wait for the
     // semaphore to become 0
     sema[0].sem_num = 0; // Use the first semaphore in the semaphore set
-    sema[0].sem_op = 0; // Wait if semaphore != 0
+    sema[0].sem_op = 1; // Wait if semaphore != 0
     sema[0].sem_flg = SEM_UNDO; // See slides
 
     sema[1].sem_num = 0; // Use the first semaphore in the semaphore set
@@ -127,6 +127,7 @@ int main (int argc, char* argv[] )
         else
         {
             //TODO: made it pass via chunks instead of 1 big buffer
+
             char buffer[999];
             strcpy( buffer, sharedMem );
             outputFile << buffer;
