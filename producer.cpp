@@ -10,6 +10,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <unistd.h>
 
 using namespace std;
 
@@ -22,7 +23,7 @@ using namespace std;
 
 int main( int argc, char* argv[] )
 {
-    string input, status;
+    string input;
     
     //Step 1
     //Semaphore creation
@@ -30,62 +31,50 @@ int main( int argc, char* argv[] )
     key_t semKey = 1234;
     int nSems = 1;
     int semFlag = IPC_CREAT | 0666;    
-
+    
     semId = semget( semKey, nSems, semFlag );
     if( semId == -1 )
     {
         perror( "semget" );
         exit(1);
     }
-
-    int nOperations = 2;
-    struct sembuf sema[nOperations];
-
-    sema[0].sem_num = 0; 
-    sema[0].sem_op = 0; 
-    sema[0].sem_flg = SEM_UNDO; 
-
-    sema[1].sem_num = 0;
-    sema[1].sem_op = 1;
-    sema[1].sem_flg = SEM_UNDO | IPC_NOWAIT; 
-
-    int opResult = semop( semId, sema, nOperations );    
-
-    if( opResult == -1 )
-    {
-        perror( "semop (increment)" );
-        exit(1);
-    }
-
+    
     //shared memory creation - A
     // Id for the shared memory
     int shmId;
-
+    int shmIdB;
+    
     // 1 key = 1 shared memory segment
     // Think of a map (the data structure)
     key_t shmKey = 12341234;
-
+    key_t shmKeyB = 32432432;
+    
     // Size of the shared memory in bytes.
     // Preferably a power of 2
     // This line of code assigns the size to be
     // 1024 bytes or 1KB
-    int shmSize = atoi(argv[2]);
-
+    int shmSize = atoi(argv[2]);    
+    int shmSizeB = 8;
+    
     // Flags + permissions when creating the shared
     // memory segment.
     // IPC_CREAT - If the shared memory does not exist yet, automatically create it
     // 0666 - Remember chmod? The 0 in front indicates that the number is expressed in octal.
     int shmFlags = IPC_CREAT | 0666;
+    int shmFlagsB = IPC_CREAT | 0666;
 
     // Pointer for the starting address of the shared memory segment.
     char* sharedMem;
+    char* sharedMemB;
 
     // Yes, this is almost the same as semget()
     shmId = shmget( shmKey, shmSize, shmFlags );
-
+    shmIdB = shmget( shmKeyB, shmSizeB, shmFlagsB );
+    
     // shmat() returns the starting address of the shared memory
     // segment, so we assign it to sharedMem.
     sharedMem = (char*)shmat( shmId, NULL, 0 );
+    sharedMemB = (char*)shmat( shmIdB, NULL, 0 );
 
     //Step 2
     //Entry Section of the program
@@ -115,50 +104,94 @@ int main( int argc, char* argv[] )
         input += fileContent[i];
     }
     
-    //Step 3
-    //Gain control of semaphore
-    if (opResult != -1)
-    {
+    int i = 0;
+    while (true)
+    {      
         
-        //Step 4
-        //Write to shared memory
-        if( ((int*)sharedMem) == (int*)-1 )
+        //Step 3
+        //Gain control of semaphore
+
+        int nOperations = 2;
+        struct sembuf sema[nOperations];
+
+        sema[0].sem_num = 0; 
+        sema[0].sem_op = 0; 
+        sema[0].sem_flg = SEM_UNDO; 
+
+        sema[1].sem_num = 0;
+        sema[1].sem_op = 1;
+        sema[1].sem_flg = SEM_UNDO | IPC_NOWAIT; 
+
+        int opResult = semop( semId, sema, nOperations );    
+
+        if( opResult == -1 )
         {
-            perror( "shmop: shmat failed" );
+            perror( "semop (increment)" );
             exit(1);
         }
         else
-        {
-            const char* buffer = input.c_str();
-            // We can now write to shared memory
-            strcpy( sharedMem, buffer );
+        {            
+            //Step 4
+            //Write to shared memory
+            if(( ((int*)sharedMem) == (int*)-1 ) || ( ((int*)sharedMemB) == (int*)-1 ))
+            {
+                perror( "shmop: shmat failed" );
+                exit(1);
+            }
+            else
+            {                    
+                const char* bufferB = "w"; //status: written
+                strcpy(sharedMemB, bufferB);
+                
+                int maxShm = i + shmSize;
+                for (i; ((i < input.length()) && (i < maxShm)); i++)
+                {
+                    string line(input, i);
+                    const char* buffer = line.c_str();
+                    // We can now write to shared memory
+                    strcpy( sharedMem, buffer );
+                }                
+                
+                cout << "successfully wrote to shared memory"<< endl;
+                cout << "i: " << i << endl;
+                cout << "shmSize: " << shmSize << endl;
+            }
+
+            if (i >= input.length())
+            {                
+                const char* bufferB = "d"; //status: done
+                strcpy(sharedMemB, bufferB);
+                return 0;
+            }
             
-            cout << "successfully wrote to shared memory"<<endl;
+            //Step 5
+            // -- Semaphore Releasing --
+
+            // Set number of operations to 1
+            nOperations = 1;
+
+            // Modify the first operation such that it
+            // now decrements the semaphore.
+            sema[0].sem_num = 0; // Use the first semaphore in the semaphore set
+            sema[0].sem_op = -1; // Decrement semaphore by 1
+            sema[0].sem_flg = SEM_UNDO | IPC_NOWAIT;
+
+            opResult = semop( semId, sema, nOperations );
+            if( opResult == -1 )
+            {
+                perror( "semop (decrement)" );
+            }
+            else
+            {
+                printf( "Successfully decremented semaphore!\n" );
+            }
         }
-        
-        //Step 5
-        // -- Semaphore Releasing --
 
-        // Set number of operations to 1
-        nOperations = 1;
-
-        // Modify the first operation such that it
-        // now decrements the semaphore.
-        sema[0].sem_num = 0; // Use the first semaphore in the semaphore set
-        sema[0].sem_op = -1; // Decrement semaphore by 1
-        sema[0].sem_flg = SEM_UNDO | IPC_NOWAIT;
-
-        opResult = semop( semId, sema, nOperations );
-        if( opResult == -1 )
+        while (sharedMemB != "*")
         {
-            perror( "semop (decrement)" );
-        }
-        else
-        {
-            printf( "Successfully decremented semaphore!\n" );
+            sleep(1);
         }
     }
-
 
     return 0;
 }
@@ -168,4 +201,4 @@ int main( int argc, char* argv[] )
 //https://stackoverflow.com/questions/347949/how-to-convert-a-stdstring-to-const-char-or-char
 //https://stackoverflow.com/questions/8437099/c-convert-char-to-const-char
 //https://stackoverflow.com/questions/7352099/stdstring-to-char/7352131
-
+//https://www.softwaretestinghelp.com/cpp-sleep/

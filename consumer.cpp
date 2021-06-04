@@ -11,6 +11,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <unistd.h>
 
 using namespace std;
 
@@ -58,123 +59,148 @@ int main (int argc, char* argv[] )
     // -- Shared Memory Initialization --
     // Id for the shared memory
     int shmId;
+    int shmIdB;
 
     // 1 key = 1 shared memory segment
     // Think of a map (the data structure)
     key_t shmKey = 12341234;
+    key_t shmKeyB = 6942069;
 
     // Size of the shared memory in bytes.
     // Preferably a power of 2
     // This line of code assigns the size to be
     // 1024 bytes or 1KB
     int shmSize = atoi(argv[2]);
+    int shmSizeB = 1;
 
     // Flags + permissions when creating the shared
     // memory segment.
     // IPC_CREAT - If the shared memory does not exist yet, automatically create it
     // 0666 - Remember chmod? The 0 in front indicates that the number is expressed in octal.
     int shmFlags = IPC_CREAT | 0666;
+    int shmFlagsB = IPC_CREAT | 0666;
 
     // Pointer for the starting address of the shared memory segment.
     char* sharedMem;
+    char* sharedMemB;
 
     // Yes, this is almost the same as semget()
     shmId = shmget( shmKey, shmSize, shmFlags );
+    shmIdB = shmget( shmKeyB, shmSizeB, shmFlagsB );
 
     // shmat() returns the starting address of the shared memory
     // segment, so we assign it to sharedMem.
     sharedMem = (char*)shmat( shmId, NULL, 0 );
+    sharedMemB = (char*)shmat( shmIdB, NULL, 0 );
     
-    //Step 2
-    //Gain control of semaphore
-    // -- Semaphore Accessing --
-
-    // Perform 2 operations
-    int nOperations = 2;
-
-    // Create an array of size 2 to hold
-    // the operations that we will do on the semaphore set
-    struct sembuf sema[nOperations];
-
-    // Definition for the first operation
-    // Our first operation will be to wait for the
-    // semaphore to become 0
-    sema[0].sem_num = 0; // Use the first semaphore in the semaphore set
-    sema[0].sem_op = 0; // Wait if semaphore != 0
-    sema[0].sem_flg = SEM_UNDO; // See slides
-
-    sema[1].sem_num = 0; // Use the first semaphore in the semaphore set
-    sema[1].sem_op = 1; // Increment semaphore by 1
-    sema[1].sem_flg = SEM_UNDO | IPC_NOWAIT; // See slides
-
-    // Perform the operations that we defined.
-    // Will return -1 on error.
-    int opResult = semop( semId, sema, nOperations );
-
-    // If we successfully incremented the semaphore,
-    // we can now do stuff.
-    if( opResult != -1 )
+    while (true)
     {
-        printf( "Successfully incremented semaphore!\n" );
+        //Step 2
+        //Gain control of semaphore
+        // -- Semaphore Accessing --
 
-        // Step 3
-        // Access the shared memory
-        
-        if( ((int*)sharedMem) == (int*)-1 )
-        {
-            perror( "shmop: shmat failed" );
-        }
-        else
-        {
-            char buffer[shmSize+1];
-            int sharedMemStringLength = strlen(sharedMem);
-            int counter = 0;
-            int difference = 0;
-            while (counter < sharedMemStringLength)
-            {
-                if ((counter+shmSize) > sharedMemStringLength)
-                {
-                    difference = (counter+shmSize)-sharedMemStringLength;
-                    memcpy(buffer,sharedMem+counter,shmSize);
-                    for (int i = shmSize - difference; i < difference; i++)
-                    {
-                        buffer[i]='\0';
-                    }
-                    outputFile << buffer;
-                    counter+=shmSize;
-                }
-                else
-                {
-                    memcpy(buffer,sharedMem+counter,shmSize);
-                    buffer[shmSize]='\0';
-                    outputFile << buffer;
-                    counter+=shmSize;
-                }
-            }
-        }
-        
-        //Step 4
-        // -- Semaphore Releasing --
+        // Perform 2 operations
+        int nOperations = 2;
 
-        // Set number of operations to 1
-        nOperations = 1;
+        // Create an array of size 2 to hold
+        // the operations that we will do on the semaphore set
+        struct sembuf sema[nOperations];
 
-        // Modify the first operation such that it
-        // now decrements the semaphore.
+        // Definition for the first operation
+        // Our first operation will be to wait for the
+        // semaphore to become 0
         sema[0].sem_num = 0; // Use the first semaphore in the semaphore set
-        sema[0].sem_op = -1; // Decrement semaphore by 1
-        sema[0].sem_flg = SEM_UNDO | IPC_NOWAIT;
+        sema[0].sem_op = 0; // Wait if semaphore != 0
+        sema[0].sem_flg = SEM_UNDO; // See slides
 
-        opResult = semop( semId, sema, nOperations );
-        if( opResult == -1 )
+        sema[1].sem_num = 0; // Use the first semaphore in the semaphore set
+        sema[1].sem_op = 1; // Increment semaphore by 1
+        sema[1].sem_flg = SEM_UNDO | IPC_NOWAIT; // See slides
+
+        // Perform the operations that we defined.
+        // Will return -1 on error.
+        int opResult = semop( semId, sema, nOperations );
+
+        // If we successfully incremented the semaphore,
+        // we can now do stuff.
+
+        if( opResult != -1 )
         {
-            perror( "semop (decrement)" );
+            printf( "Successfully incremented semaphore!\n" );
+
+            // Step 3
+            // Access the shared memory
+            
+            if( ((int*)sharedMem) == (int*)-1 )
+            {
+                perror( "shmop: shmat failed" );
+            }
+            else
+            {
+                char buffer[shmSize+1];
+                int sharedMemStringLength = strlen(sharedMem);
+                int counter = 0;
+                int difference = 0;
+                while (counter < sharedMemStringLength)
+                {
+                    if ((counter+shmSize) > sharedMemStringLength)
+                    {
+                        difference = (counter+shmSize)-sharedMemStringLength;
+                        memcpy(buffer,sharedMem+counter,shmSize);
+                        for (int i = shmSize - difference; i < difference; i++)
+                        {
+                            buffer[i]='\0';
+                        }
+                        outputFile << buffer;
+                        counter+=shmSize;
+                    }
+                    else
+                    {
+                        memcpy(buffer,sharedMem+counter,shmSize);
+                        buffer[shmSize]='\0';
+                        outputFile << buffer;
+                        counter+=shmSize;
+                    }
+                }
+                const char* bufferB = "*";
+                strcpy(sharedMemB, bufferB);                
+            }
+            
+            //Step 4
+            // -- Semaphore Releasing --
+
+            // Set number of operations to 1
+            nOperations = 1;
+
+            // Modify the first operation such that it
+            // now decrements the semaphore.
+            sema[0].sem_num = 0; // Use the first semaphore in the semaphore set
+            sema[0].sem_op = -1; // Decrement semaphore by 1
+            sema[0].sem_flg = SEM_UNDO | IPC_NOWAIT;
+
+            opResult = semop( semId, sema, nOperations );
+            if( opResult == -1 )
+            {
+                perror( "semop (decrement)" );
+            }
+            else
+            {
+                printf( "Successfully decremented semaphore!\n" );
+            }
+            
         }
-        else
+        
+        while (sharedMemB == "*")
         {
-            printf( "Successfully decremented semaphore!\n" );
+            sleep(1);
+        }
+
+        if (sharedMemB == "d")
+        {
+            break;
         }
     }
 
 }
 //https://stackoverflow.com/questions/36644523/copying-n-characters-using-memcpy
+//https://www.softwaretestinghelp.com/cpp-sleep/
