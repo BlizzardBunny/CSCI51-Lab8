@@ -7,6 +7,7 @@
 #include <cstring>
 #include <cstdlib>
 
+#include <string.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -125,26 +126,31 @@ int main (int argc, char* argv[] )
         }
         else
         {
-            //TODO: made it pass via chunks instead of 1 big buffer
-
             char buffer[shmSize+1];
+            int sharedMemStringLength = strlen(sharedMem);
             int counter = 0;
-            while (counter < 579)
+            int difference = 0;
+            while (counter < sharedMemStringLength)
             {
-                
-                memcpy(buffer,sharedMem+counter,shmSize);
-                buffer[shmSize]='\0';
-                outputFile << buffer;
-                counter+=shmSize;
+                if ((counter+shmSize) > sharedMemStringLength)
+                {
+                    difference = (counter+shmSize)-sharedMemStringLength;
+                    memcpy(buffer,sharedMem+counter,shmSize);
+                    for (int i = shmSize - difference; i < difference; i++)
+                    {
+                        buffer[i]='\0';
+                    }
+                    outputFile << buffer;
+                    counter+=shmSize;
+                }
+                else
+                {
+                    memcpy(buffer,sharedMem+counter,shmSize);
+                    buffer[shmSize]='\0';
+                    outputFile << buffer;
+                    counter+=shmSize;
+                }
             }
-//            char buffer[shmSize];
-//            int counter = 0;
-//            while (counter < int(sharedMem.size()))
-//            {
-//                memcpy( buffer, sharedMem+counter, shmSize );
-//                outputFile << buffer;
-//                counter+=shmSize;
-//            }
         }
         
         //Step 4
