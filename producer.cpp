@@ -119,7 +119,6 @@ int main( int argc, char* argv[] )
     //Gain control of semaphore
     if (opResult != -1)
     {
-        cout << "I have control of the semaphore pog"<<endl;
         
         //Step 4
         //Write to shared memory
