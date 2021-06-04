@@ -21,7 +21,6 @@ using namespace std;
 
 int main (int argc, char* argv[] )
 {
-    vector<string> pacertest;
     string filename = argv[1];
     ofstream outputFile(filename);
     //Step 1, find the shared resources
@@ -100,7 +99,7 @@ int main (int argc, char* argv[] )
     // Our first operation will be to wait for the
     // semaphore to become 0
     sema[0].sem_num = 0; // Use the first semaphore in the semaphore set
-    sema[0].sem_op = 1; // Wait if semaphore != 0
+    sema[0].sem_op = 0; // Wait if semaphore != 0
     sema[0].sem_flg = SEM_UNDO; // See slides
 
     sema[1].sem_num = 0; // Use the first semaphore in the semaphore set
@@ -128,11 +127,24 @@ int main (int argc, char* argv[] )
         {
             //TODO: made it pass via chunks instead of 1 big buffer
 
-            char buffer[999];
-            strcpy( buffer, sharedMem );
-            outputFile << buffer;
-            printf( "%s\n", buffer );
-            //outputFile << buffer << endl;
+            char buffer[shmSize+1];
+            int counter = 0;
+            while (counter < 579)
+            {
+                
+                memcpy(buffer,sharedMem+counter,shmSize);
+                buffer[shmSize]='\0';
+                outputFile << buffer;
+                counter+=shmSize;
+            }
+//            char buffer[shmSize];
+//            int counter = 0;
+//            while (counter < int(sharedMem.size()))
+//            {
+//                memcpy( buffer, sharedMem+counter, shmSize );
+//                outputFile << buffer;
+//                counter+=shmSize;
+//            }
         }
         
         //Step 4
@@ -159,3 +171,4 @@ int main (int argc, char* argv[] )
     }
 
 }
+//https://stackoverflow.com/questions/36644523/copying-n-characters-using-memcpy

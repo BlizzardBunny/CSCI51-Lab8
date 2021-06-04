@@ -69,7 +69,7 @@ int main( int argc, char* argv[] )
     // Preferably a power of 2
     // This line of code assigns the size to be
     // 1024 bytes or 1KB
-    int shmSize = 1 << 10;
+    int shmSize = atoi(argv[2]);
 
     // Flags + permissions when creating the shared
     // memory segment.
