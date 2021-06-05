@@ -54,7 +54,7 @@ int main( int argc, char* argv[] )
     // This line of code assigns the size to be
     // 1024 bytes or 1KB
     int shmSize = atoi(argv[2]);    
-    int shmSizeB = 8;
+    int shmSizeB = atoi(argv[2]);
     
     // Flags + permissions when creating the shared
     // memory segment.
@@ -107,7 +107,7 @@ int main( int argc, char* argv[] )
     int i = 0;
     while (true)
     {      
-        
+        char waitCondition[8];
         //Step 3
         //Gain control of semaphore
 
@@ -143,27 +143,28 @@ int main( int argc, char* argv[] )
                 const char* bufferB = "w"; //status: written
                 strcpy(sharedMemB, bufferB);
                 
+                string line = "";
                 int maxShm = i + shmSize;
                 for (i; ((i < input.length()) && (i < maxShm)); i++)
                 {
-                    string line(input, i);
-                    const char* buffer = line.c_str();
-                    // We can now write to shared memory
-                    strcpy( sharedMem, buffer );
+                    string temp(1, input.at(i));
+                    line += temp;
                 }                
                 
-                cout << "successfully wrote to shared memory"<< endl;
-                cout << "i: " << i << endl;
-                cout << "shmSize: " << shmSize << endl;
-            }
-
+                const char* buffer = line.c_str();
+                // We can now write to shared memory
+                strcpy( sharedMem, buffer );
+                
+                cout << "successfully wrote to shared memory" << endl;
+            }                       
+            cout << "i: " << i << endl;
             if (i >= input.length())
             {                
                 const char* bufferB = "d"; //status: done
                 strcpy(sharedMemB, bufferB);
                 return 0;
             }
-            
+
             //Step 5
             // -- Semaphore Releasing --
 
@@ -186,9 +187,12 @@ int main( int argc, char* argv[] )
                 printf( "Successfully decremented semaphore!\n" );
             }
         }
+        memcpy( waitCondition, sharedMemB, 8 );
+        cout << "successfully read shared memory" << endl;
 
-        while (sharedMemB != "*")
-        {
+        while (waitCondition[0] != '*')
+        {            
+            memcpy( waitCondition, sharedMemB, 8 );
             sleep(1);
         }
     }
@@ -202,3 +206,5 @@ int main( int argc, char* argv[] )
 //https://stackoverflow.com/questions/8437099/c-convert-char-to-const-char
 //https://stackoverflow.com/questions/7352099/stdstring-to-char/7352131
 //https://www.softwaretestinghelp.com/cpp-sleep/
+//https://www.techiedelight.com/convert-char-to-string-cpp/
+//https://stackoverflow.com/questions/31219577/not-equal-operator-not-working-with-correctly-char-in-c

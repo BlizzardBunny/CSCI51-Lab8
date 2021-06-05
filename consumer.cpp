@@ -64,14 +64,14 @@ int main (int argc, char* argv[] )
     // 1 key = 1 shared memory segment
     // Think of a map (the data structure)
     key_t shmKey = 12341234;
-    key_t shmKeyB = 6942069;
+    key_t shmKeyB = 32432432;
 
     // Size of the shared memory in bytes.
     // Preferably a power of 2
     // This line of code assigns the size to be
     // 1024 bytes or 1KB
     int shmSize = atoi(argv[2]);
-    int shmSizeB = 1;
+    int shmSizeB = atoi(argv[2]);
 
     // Flags + permissions when creating the shared
     // memory segment.
@@ -95,6 +95,7 @@ int main (int argc, char* argv[] )
     
     while (true)
     {
+        char waitCondition[8];
         //Step 2
         //Gain control of semaphore
         // -- Semaphore Accessing --
@@ -131,7 +132,7 @@ int main (int argc, char* argv[] )
             // Step 3
             // Access the shared memory
             
-            if( ((int*)sharedMem) == (int*)-1 )
+            if(( ((int*)sharedMem) == (int*)-1 ) || ( ((int*)sharedMemB) == (int*)-1 ))
             {
                 perror( "shmop: shmat failed" );
             }
@@ -151,7 +152,7 @@ int main (int argc, char* argv[] )
                         {
                             buffer[i]='\0';
                         }
-                        outputFile << buffer;
+                        outputFile << buffer;                        
                         counter+=shmSize;
                     }
                     else
@@ -162,8 +163,10 @@ int main (int argc, char* argv[] )
                         counter+=shmSize;
                     }
                 }
+
                 const char* bufferB = "*";
-                strcpy(sharedMemB, bufferB);                
+                strcpy(sharedMemB, bufferB);      
+                cout << "successfully wrote to shared memory" << endl;          
             }
             
             //Step 4
@@ -187,17 +190,21 @@ int main (int argc, char* argv[] )
             {
                 printf( "Successfully decremented semaphore!\n" );
             }
-            
-        }
-        
-        while (sharedMemB == "*")
-        {
-            sleep(1);
+
+            if (waitCondition[0] == 'd')
+            {
+                break;
+            }            
         }
 
-        if (sharedMemB == "d")
+        memcpy( waitCondition, sharedMemB, 8 );
+        cout << "successfully read shared memory" << endl;
+        
+        while (waitCondition[0] == '*')
         {
-            break;
+            memcpy( waitCondition, sharedMemB, 8 );
+            cout << waitCondition << endl;
+            sleep(1);
         }
     }
 
