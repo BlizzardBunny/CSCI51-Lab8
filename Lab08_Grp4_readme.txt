@@ -11,3 +11,6 @@ how to run program:
 3. create a sample text file for input
 4. run the producer program in terminal using ./[ProgramName] [textfile.txt] [shared memory size]
 5. run the consumer program in terminal using ./[ProgramName] [outputtextfile.txt] [shared memory size]
+
+Further Notes:
+Once initialized, the shared memory size cannot be altered as the shared memory is not deallocated, leading to a shmat error.
